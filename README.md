@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Inspection Management System
 
 A Spring Boot REST API application for managing inspection records with comprehensive CRUD operations and monitoring capabilities.
@@ -224,3 +225,7 @@ This project demonstrates:
 ---
 
 **Version**: 1.0.0 | **Java**: 21 | **Framework**: Spring Boot 3.5.4
+=======
+# Inspection
+Interview Test Case
+>>>>>>> 7abe1b3a352d9daa81cf95f03927832c8055e4d5
