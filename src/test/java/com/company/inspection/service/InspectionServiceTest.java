@@ -281,7 +281,7 @@ public class InspectionServiceTest {
 
         // When & Then
         ResourceNotFoundException exception = assertThrows(ResourceNotFoundException.class, () -> inspectionService.getInspectionById(inspectionId));
-        assertEquals("Inspection not found with id:" + inspectionId, exception.getMessage());
+        assertEquals("Inspection not found with id: " + inspectionId, exception.getMessage());
     }
 
     @Test
@@ -351,6 +351,7 @@ public class InspectionServiceTest {
         answer1.setId(1L);
         answer1.setAnswer(InspectionAnswer.AnswerType.YES);
         answer1.setDescription("Some damage found");
+        answer1.setQuestion(mockQuestions.get(0));
 
         InspectionPhoto photo1 = new InspectionPhoto();
         photo1.setId(1L);
