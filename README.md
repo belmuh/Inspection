@@ -66,6 +66,16 @@ curl http://localhost:8080/actuator/health
 - `PUT /api/v1/inspections/{id}` - Update existing inspection
 - `DELETE /api/v1/inspections/{id}` - Remove inspection
 
+## API Documentation (Swagger UI)
+
+Explore and test the API endpoints interactively using Swagger UI:
+
+- Open your browser and go to:  
+  `http://localhost:8080/swagger-ui.html`
+
+- For raw OpenAPI JSON specification:  
+  `http://localhost:8080/v3/api-docs`
+
 ## Sample Usage
 
 ### API Health Check
