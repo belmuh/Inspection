@@ -3,6 +3,10 @@ package com.company.inspection.controller;
 import com.company.inspection.dto.request.CreateInspectionRequest;
 import com.company.inspection.dto.response.InspectionResponse;
 import com.company.inspection.service.InspectionService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,22 +19,19 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 @Slf4j
 @CrossOrigin(origins = "*") // Allow mobile app access
+@Tag(name = "Inspection Management", description = "API endpoints for vehicle inspection management system")
 public class InspectionController {
 
     private final InspectionService inspectionService;
 
     /**
      * READ METHOD: Get inspection questions with previous data for a car
-     *
-     * GET /api/v1/inspections/{carId}/questions
-     *
-     * Test case requirement: This method takes "carId" as parameter and returns
-     * an array of objects containing questions and details. If previous inspection
-     * exists for this carId and "Yes" option was selected, photo URLs from
-     * previous inspection are returned as sub-information in the objects.
      */
     @GetMapping("/{carId}/questions")
+    @Operation(summary = "Get inspection questions for a vehicle")
+    @ApiResponse(responseCode = "200", description = "Questions retrieved successfully")
     public ResponseEntity<InspectionResponse> getInspectionQuestions(
+            @Parameter(description = "Car ID", example = "CAR-12345")
             @PathVariable("carId") String carId) {
 
         log.info("GET /api/v1/inspections/{}/questions - Getting inspection questions", carId);
@@ -51,17 +52,12 @@ public class InspectionController {
 
     /**
      * CREATE METHOD: Create new inspection with answers
-     *
-     * POST /api/v1/inspections
-     *
-     * Test case requirement: This method is called after questions are answered
-     * in the inspection screen created using the Read method, by adding "carId"
-     * information. Photos taken are automatically uploaded to cloud by mobile app
-     * and sent to this service as an array of strings containing user's selected
-     * answer and photo URL information.
      */
     @PostMapping
+    @Operation(summary = "Create a new inspection")
+    @ApiResponse(responseCode = "201", description = "Inspection created successfully")
     public ResponseEntity<InspectionResponse> createInspection(
+            @Parameter(description = "Inspection request data")
             @Valid @RequestBody CreateInspectionRequest request) {
 
         log.info("POST /api/v1/inspections - Creating inspection for car: {} with {} answers",
@@ -88,7 +84,11 @@ public class InspectionController {
      * Get specific inspection by ID (optional endpoint for debugging/admin)
      */
     @GetMapping("/{inspectionId}")
-    public ResponseEntity<Object> getInspectionById(@PathVariable("inspectionId") Long inspectionId) {
+    @Operation(summary = "Get inspection by ID")
+    @ApiResponse(responseCode = "200", description = "Inspection found")
+    public ResponseEntity<Object> getInspectionById(
+            @Parameter(description = "Inspection ID", example = "12345")
+            @PathVariable("inspectionId") Long inspectionId) {
 
         log.info("GET /api/v1/inspections/{} - Getting inspection details", inspectionId);
 
@@ -117,7 +117,11 @@ public class InspectionController {
      * Get all inspections for a car (optional endpoint for history)
      */
     @GetMapping("/car/{carId}")
-    public ResponseEntity<Object> getInspectionsByCarId(@PathVariable("carId") String carId) {
+    @Operation(summary = "Get inspection history for a vehicle")
+    @ApiResponse(responseCode = "200", description = "Inspection history retrieved")
+    public ResponseEntity<Object> getInspectionsByCarId(
+            @Parameter(description = "Car ID", example = "CAR-12345")
+            @PathVariable("carId") String carId) {
 
         log.info("GET /api/v1/inspections/car/{} - Getting inspection history", carId);
 
@@ -152,6 +156,8 @@ public class InspectionController {
      * Health check endpoint
      */
     @GetMapping("/health")
+    @Operation(summary = "Health check")
+    @ApiResponse(responseCode = "200", description = "Service is healthy")
     public ResponseEntity<Object> healthCheck() {
         var response = java.util.Map.of(
                 "status", "UP",
