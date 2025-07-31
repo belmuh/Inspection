@@ -41,9 +41,17 @@ public class InspectionService {
         // Get all active questions
         List<Question> questions = questionService.getAllActiveQuestions();
 
+        // ÖNCE yarım kalan inspection'ı ara
+        Optional<Inspection> draftInspection = inspectionRepository
+                .findFirstByCarIdAndStatusOrderByCreatedAtDesc(carId, Inspection.InspectionStatus.IN_PROGRESS);
+
         // Get latest completed inspection for this car
-        Optional<Inspection> latestInspection = inspectionRepository
-                .findFirstByCarIdAndStatusOrderByCreatedAtDesc(carId, Inspection.InspectionStatus.COMPLETED);
+        Optional<Inspection> completedInspection = draftInspection.isEmpty() ? inspectionRepository
+                .findFirstByCarIdAndStatusOrderByCreatedAtDesc(carId, Inspection.InspectionStatus.COMPLETED):
+                Optional.empty();
+
+        // Hangisi varsa onu kullan (öncelik draft'ta)
+        Optional<Inspection> latestInspection = draftInspection.or(() -> completedInspection);
 
         // Build response
         InspectionResponse.InspectionResponseBuilder responseBuilder = InspectionResponse.builder()
@@ -51,8 +59,13 @@ public class InspectionService {
                 .hasPreviousInspection(latestInspection.isPresent());
 
         if (latestInspection.isPresent()) {
-            responseBuilder.lastInspectionDate(latestInspection.get().getCreatedAt());
-            log.debug("Found previous inspection for car: {} at {}", carId, latestInspection.get().getCreatedAt());
+            responseBuilder
+                    .inspectionId(latestInspection.get().getId()) // Denetim ID'sini ekle
+                    .status(latestInspection.get().getStatus().name()) // Durum bilgisini ekle
+                    .lastInspectionDate(latestInspection.get().getCreatedAt());
+            log.debug("Found previous inspection for car: {} with ID: {} at {}",
+                    carId, latestInspection.get().getId(), latestInspection.get().getCreatedAt());
+
         }
 
         // Get previous answers if exists
@@ -111,15 +124,28 @@ public class InspectionService {
         // Validate request
         validateCreateInspectionRequest(request);
 
-        // Create new inspection
-        Inspection inspection = Inspection.builder()
-                .carId(request.getCarId())
-                .inspectionDate(LocalDateTime.now())
-                .status(Inspection.InspectionStatus.IN_PROGRESS)
-                .build();
+        Optional<Inspection> existingInspection = inspectionRepository.findFirstByCarIdAndStatusOrderByCreatedAtDesc(
+                        request.getCarId(), Inspection.InspectionStatus.IN_PROGRESS);
 
-        Inspection savedInspection = inspectionRepository.save(inspection);
-        log.debug("Created inspection with id: {}", savedInspection.getId());
+        final Inspection inspectionToSave;
+
+        if (existingInspection.isPresent()) {
+            // Mevcut bir denetim varsa, onu güncelle
+            inspectionToSave = existingInspection.get();
+            log.debug("Found an existing IN_PROGRESS inspection with id: {}. Updating it.",
+                    inspectionToSave.getId());
+        } else {
+            // Create new inspection
+            inspectionToSave = Inspection.builder()
+                    .carId(request.getCarId())
+                    .inspectionDate(LocalDateTime.now())
+                    .status(Inspection.InspectionStatus.IN_PROGRESS)
+                    .build();
+
+            log.debug("No existing IN_PROGRESS inspection found. Creating a new one.");
+        }
+        Inspection savedInspection = inspectionRepository.save(inspectionToSave);
+        log.debug("Saved inspection with id: {}", savedInspection.getId());
 
         // Process answers
         List<InspectionAnswer> savedAnswers = new ArrayList<>();
@@ -149,19 +175,31 @@ public class InspectionService {
      */
     private InspectionAnswer processAnswer(Inspection inspection, CreateInspectionRequest.AnswerRequest answerRequest) {
         log.debug("Processing answer for question: {}", answerRequest.getQuestionId());
+        Optional<InspectionAnswer> existingAnswer = answerRepository.findByInspectionIdAndQuestionId(inspection.getId(), answerRequest.getQuestionId());
 
-        // Get question
-        Question question = questionService.getQuestionById(answerRequest.getQuestionId());
+        final InspectionAnswer answerToSave;
 
-        // Create answer
-        InspectionAnswer answer = InspectionAnswer.builder()
-                .inspection(inspection)
-                .question(question)
-                .answer(InspectionAnswer.AnswerType.valueOf(answerRequest.getAnswer().toUpperCase()))
-                .description(answerRequest.getDescription())
-                .build();
+        if (existingAnswer.isPresent()) {
+            // exists answer - update
+            answerToSave = existingAnswer.get();
+            answerToSave.setAnswer(InspectionAnswer.AnswerType.valueOf(answerRequest.getAnswer().toUpperCase()));
+            answerToSave.setDescription(answerRequest.getDescription());
+            // Diğer alanları da ihtiyaca göre güncelleyebilirsin
+            log.debug("Updating existing answer with id: {}", answerToSave.getId());
+        } else {
 
-        InspectionAnswer savedAnswer = answerRepository.save(answer);
+            // create
+            Question question = questionService.getQuestionById(answerRequest.getQuestionId());
+
+            // Create answer
+            answerToSave = InspectionAnswer.builder()
+                    .inspection(inspection)
+                    .question(question)
+                    .answer(InspectionAnswer.AnswerType.valueOf(answerRequest.getAnswer().toUpperCase()))
+                    .description(answerRequest.getDescription())
+                    .build();
+        }
+        InspectionAnswer savedAnswer = answerRepository.save(answerToSave);
 
         // Process photos for YES answers
         if (savedAnswer.isYesAnswer() && answerRequest.getPhotoUrls() != null) {

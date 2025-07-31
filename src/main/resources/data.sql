@@ -4,18 +4,12 @@
 INSERT INTO questions (question_text, order_index, is_active) VALUES
 ('Araçta dış hasar var mı?', 1, true),
 ('Motor ile ilgili sorun var mı?', 2, true),
-('Lastiklerde aşınma var mı?', 3, true),
-('İç aksesuar hasarı var mı?', 4, true),
-('Elektriksel sorun var mı?', 5, true),
-('Fren sistemi ile ilgili sorun var mı?', 6, true),
-('Cam hasarı var mı?', 7, true),
-('Yakıt sistemi ile ilgili sorun var mı?', 8, true),
-('Aydınlatma sistemi sorunu var mı?', 9, true),
-('Direksiyon ile ilgili sorun var mı?', 10, true);
+('Lastiklerde aşınma var mı?', 3, true);
 
 -- Inspections tablosuna veri ekliyoruz
 INSERT INTO inspections (car_id, inspection_date, status) VALUES
 ('ABC123', TIMESTAMP '2024-01-15 10:30:00', 'COMPLETED'),
+('ABC123', TIMESTAMP '2024-01-15 10:40:00', 'IN_PROGRESS'),
 ('XYZ789', TIMESTAMP '2024-01-10 14:15:00', 'COMPLETED');
 
 -- inspection_answers tablosuna veri ekliyoruz
@@ -32,5 +26,4 @@ INSERT INTO inspection_photos (answer_id, photo_url, is_new) VALUES
 (1, 'https://example-cloud.com/photos/abc123-door-scratch-2.jpg', false),
 (3, 'https://example-cloud.com/photos/abc123-tire-wear-1.jpg', false),
 (5, 'https://example-cloud.com/photos/xyz789-engine-leak-1.jpg', false),
-(5, 'https://example-cloud.com/photos/xyz789-engine-leak-2.jpg', false),
-(5, 'https://example-cloud.com/photos/xyz789-engine-leak-3.jpg', false);
+(5, 'https://example-cloud.com/photos/xyz789-engine-leak-2.jpg', false);
