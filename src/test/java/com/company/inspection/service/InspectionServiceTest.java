@@ -49,6 +49,7 @@ public class InspectionServiceTest {
     private String carId;
     private List<Question> mockQuestions;
     private Inspection mockInspection;
+    private Inspection mockInProgressInspection;
     private CreateInspectionRequest createRequest;
 
     @BeforeEach
@@ -56,6 +57,7 @@ public class InspectionServiceTest {
         carId = "CAR123";
         setupMockQuestions();
         setupMockInspection();
+        setupMockInProgressInspection();
         setupCreateRequest();
     }
 
@@ -64,6 +66,9 @@ public class InspectionServiceTest {
     void shouldGetInspectionQuestionsForNewCar() {
         // Given - İlk kez ekspertiz yapılan araç
         when(questionService.getAllActiveQuestions()).thenReturn(mockQuestions);
+        when(inspectionRepository.findFirstByCarIdAndStatusOrderByCreatedAtDesc(
+                carId, Inspection.InspectionStatus.IN_PROGRESS)).thenReturn(Optional.empty());
+
         when(inspectionRepository.findFirstByCarIdAndStatusOrderByCreatedAtDesc(
                 carId, Inspection.InspectionStatus.COMPLETED)).thenReturn(Optional.empty());
 
@@ -75,6 +80,8 @@ public class InspectionServiceTest {
         assertEquals(carId, response.getCarId());
         assertFalse(response.getHasPreviousInspection());
         assertNull(response.getLastInspectionDate());
+        assertNull(response.getInspectionId());
+        assertNull(response.getStatus());
         assertEquals(2, response.getQuestions().size());
 
         // Verify no previous answers exist
@@ -84,15 +91,23 @@ public class InspectionServiceTest {
 
         verify(questionService).getAllActiveQuestions();
         verify(inspectionRepository).findFirstByCarIdAndStatusOrderByCreatedAtDesc(
+                carId, Inspection.InspectionStatus.IN_PROGRESS);
+        verify(inspectionRepository).findFirstByCarIdAndStatusOrderByCreatedAtDesc(
                 carId, Inspection.InspectionStatus.COMPLETED);
+
+
+
     }
 
     @Test
-    void shouldGetInspectionQuestionsWithPreviousData() {
+    void shouldGetInspectionQuestionsWithPreviousCompletedData() {
         // Given - Önceki ekspertizi olan araç
         when(questionService.getAllActiveQuestions()).thenReturn(mockQuestions);
-        when(inspectionRepository.findFirstByCarIdAndStatusOrderByCreatedAtDesc(
-                carId, Inspection.InspectionStatus.COMPLETED)).thenReturn(Optional.of(mockInspection));
+        when(inspectionRepository.findFirstByCarIdAndStatusOrderByCreatedAtDesc(carId, Inspection.InspectionStatus.IN_PROGRESS))
+                .thenReturn(Optional.empty());
+
+        when(inspectionRepository.findFirstByCarIdAndStatusOrderByCreatedAtDesc(carId, Inspection.InspectionStatus.COMPLETED))
+                .thenReturn(Optional.of(mockInspection));
 
         List<InspectionAnswer> mockAnswers = createMockAnswersWithPhotos();
         when(inspectionAnswerRepository.findByInspectionIdWithPhotos(mockInspection.getId())).thenReturn(mockAnswers);
@@ -105,6 +120,7 @@ public class InspectionServiceTest {
         assertEquals(carId, response.getCarId());
         assertTrue(response.getHasPreviousInspection());
         assertNotNull(response.getLastInspectionDate());
+        assertEquals("COMPLETED", response.getStatus());
         assertEquals(2, response.getQuestions().size());
 
         // First question should have previous answer with photos
@@ -117,16 +133,62 @@ public class InspectionServiceTest {
         verify(inspectionAnswerRepository).findByInspectionIdWithPhotos(mockInspection.getId());
     }
 
+    @Test
+    void shouldGetInspectionQuestionWithInProgressData(){
+        InspectionAnswer inProgressAnswer = new InspectionAnswer();
+        inProgressAnswer.setId(3L);
+        inProgressAnswer.setQuestion(mockQuestions.get(0));
+        inProgressAnswer.setAnswer(InspectionAnswer.AnswerType.YES);
+        mockInProgressInspection.setAnswers(Arrays.asList(inProgressAnswer));
+
+        when(inspectionRepository.findFirstByCarIdAndStatusOrderByCreatedAtDesc(carId,Inspection.InspectionStatus.IN_PROGRESS))
+                .thenReturn(Optional.of(mockInProgressInspection));
+
+        when(questionService.getAllActiveQuestions()).thenReturn(mockQuestions);
+
+        List<InspectionAnswer> mockAnswers = createMockAnswersWithPhotos();
+        when(inspectionAnswerRepository.findByInspectionIdWithPhotos(mockInProgressInspection.getId())).thenReturn(mockAnswers);
+
+        InspectionResponse response = inspectionService.getInspectionQuestions(carId);
+
+        assertNotNull(response);
+        assertEquals(carId, response.getCarId());
+        assertTrue(response.getHasPreviousInspection());
+        assertNotNull(response.getLastInspectionDate());
+        assertEquals(mockInProgressInspection.getId(), response.getInspectionId());
+        assertEquals("IN_PROGRESS", response.getStatus());
+        assertEquals(2, response.getQuestions().size());
+
+        QuestionResponse firstQuestion = response.getQuestions().get(0);
+        assertNotNull(firstQuestion.getPreviousAnswer());
+        assertEquals("YES", firstQuestion.getPreviousAnswer().getAnswer());
+
+        QuestionResponse secondQuestion = response.getQuestions().get(1);
+        assertNull(secondQuestion.getPreviousAnswer());
+
+        verify(inspectionRepository).findFirstByCarIdAndStatusOrderByCreatedAtDesc(
+                carId, Inspection.InspectionStatus.IN_PROGRESS);
+        verify(questionService).getAllActiveQuestions();
+        verify(inspectionRepository, never()).findFirstByCarIdAndStatusOrderByCreatedAtDesc(
+                carId, Inspection.InspectionStatus.COMPLETED);
+
+
+    }
+
     // Create Method Tests
     @Test
-    void shouldCreateInspectionSuccessfully() {
+    void shouldCreateNewInspectionSuccessfully() {
         // Given
         Question question1 = mockQuestions.get(0);
         Question question2 = mockQuestions.get(1);
 
+        when(inspectionRepository.findFirstByCarIdAndStatusOrderByCreatedAtDesc(
+                carId, Inspection.InspectionStatus.IN_PROGRESS)).thenReturn(Optional.empty());
         when(questionService.getQuestionById(1L)).thenReturn(question1);
         when(questionService.getQuestionById(2L)).thenReturn(question2);
         when(inspectionRepository.save(any(Inspection.class))).thenReturn(mockInspection);
+        when(inspectionAnswerRepository.findByInspectionIdAndQuestionId(anyLong(), anyLong()))
+                .thenReturn(Optional.empty());
 
         InspectionAnswer savedAnswer1 = createMockAnswer(1L, InspectionAnswer.AnswerType.YES);
         InspectionAnswer savedAnswer2 = createMockAnswer(2L, InspectionAnswer.AnswerType.NO);
@@ -149,6 +211,40 @@ public class InspectionServiceTest {
         verify(inspectionRepository, times(2)).save(any(Inspection.class));
         verify(inspectionAnswerRepository, times(2)).save(any(InspectionAnswer.class));
         verify(inspectionPhotoRepository).saveAll(anyList()); // For YES answer photos
+    }
+
+    @Test
+    void shouldUpdateExistingInProgressInspection(){
+        Question question1 = mockQuestions.get(0);
+        Question question2 = mockQuestions.get(1);
+
+        when(inspectionRepository.findFirstByCarIdAndStatusOrderByCreatedAtDesc(
+                carId, Inspection.InspectionStatus.IN_PROGRESS)).thenReturn(Optional.of(mockInProgressInspection));
+        when(inspectionRepository.save(any(Inspection.class))).thenReturn(mockInProgressInspection);
+
+        InspectionAnswer existingAnswer1 = createMockAnswer(1L, InspectionAnswer.AnswerType.NO);
+        InspectionAnswer existingAnswer2 = createMockAnswer(2L, InspectionAnswer.AnswerType.NO);
+
+        when(inspectionAnswerRepository.findByInspectionIdAndQuestionId(mockInProgressInspection.getId(), 1L))
+                .thenReturn(Optional.of(existingAnswer1));
+        when(inspectionAnswerRepository.findByInspectionIdAndQuestionId(mockInProgressInspection.getId(), 2L))
+                .thenReturn(Optional.of(existingAnswer2));
+        when(inspectionAnswerRepository.save(any(InspectionAnswer.class)))
+                .thenReturn(existingAnswer1)
+                .thenReturn(existingAnswer2);
+
+        InspectionResponse response = inspectionService.createInspection(createRequest);
+
+        assertNotNull(response);
+        assertEquals(mockInProgressInspection.getId(),response.getInspectionId());
+        assertEquals(carId, response.getCarId());
+        assertEquals("COMPLETED", response.getStatus());
+
+        verify(inspectionRepository, times(2)).save(mockInProgressInspection);
+        verify(inspectionAnswerRepository, times(2)).save(any(InspectionAnswer.class));
+        verify(inspectionAnswerRepository, times(2)).findByInspectionIdAndQuestionId(anyLong(), anyLong());
+        verify(inspectionPhotoRepository, times(1)).saveAll(anyList());
+
     }
 
     @Test
@@ -241,9 +337,13 @@ public class InspectionServiceTest {
         Question question1 = mockQuestions.get(0);
         Question question2 = mockQuestions.get(1);
 
+        when(inspectionRepository.findFirstByCarIdAndStatusOrderByCreatedAtDesc(
+                carId, Inspection.InspectionStatus.IN_PROGRESS)).thenReturn(Optional.empty());
         when(questionService.getQuestionById(1L)).thenReturn(question1);
         when(questionService.getQuestionById(2L)).thenReturn(question2);
         when(inspectionRepository.save(any(Inspection.class))).thenReturn(mockInspection);
+        when(inspectionAnswerRepository.findByInspectionIdAndQuestionId(anyLong(), anyLong()))
+                .thenReturn(Optional.empty());
         when(inspectionAnswerRepository.save(any(InspectionAnswer.class)))
                 .thenReturn(createMockAnswer(1L, InspectionAnswer.AnswerType.NO));
 
@@ -336,6 +436,15 @@ public class InspectionServiceTest {
         mockInspection.setCarId(carId);
         mockInspection.setStatus(Inspection.InspectionStatus.COMPLETED);
         mockInspection.setCreatedAt(LocalDateTime.now());
+    }
+
+    private void setupMockInProgressInspection(){
+        mockInProgressInspection = new Inspection();
+        mockInProgressInspection.setId(2L);
+        mockInProgressInspection.setCarId(carId);
+        mockInProgressInspection.setStatus(Inspection.InspectionStatus.IN_PROGRESS);
+        mockInProgressInspection.setCreatedAt(LocalDateTime.now());
+
     }
 
     private InspectionAnswer createMockAnswer(Long questionId, InspectionAnswer.AnswerType answerType){
