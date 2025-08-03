@@ -11,6 +11,7 @@ A Spring Boot REST API application for managing inspection records with comprehe
 - Database Integration: JPA/Hibernate with flexible database support
 - Error Handling: Comprehensive exception handling and validation
 - Development Tools: Demo scripts and monitoring utilities included
+- Distributed Tracing: Implemented with OpenTelemetry to trace request flows across the application.
 
 ## Technology Stack
 
@@ -19,21 +20,31 @@ A Spring Boot REST API application for managing inspection records with comprehe
 - **Database**: H2 (development), PostgreSQL/MySQL (production ready)
 - **ORM**: Spring Data JPA / Hibernate
 - **Build Tool**: Maven
-- **Monitoring**: Spring Boot Actuator
+- **Monitoring**: Spring Boot Actuator, OpenTelemetry, Jaeger
+- **Tracing**: OpenTelemetry (OTLP Exporter), Jaeger
 
 ## Prerequisites
 
 - Java 21
 - Maven 3.9.10
+- Docker (for running PostreSQL and Jaeger)
+  - macOS kullanıcıları için: Colima gibi hafif bir Docker çalışma zamanı ortamı kullanabilirsiniz.
 
 ## Quick Start
 
 ### 1. Clone and Build
 ```bash
-git clone <repository-url>
+git clone https://github.com/belmuh/Inspection
 cd inspection-management-system
 ./mvnw clean install
 ```
+### - Configure Database
+###  PostgreSQL start
+- docker start inspection-db
+- docker exec -it inspection-db psql -U belma -d inspection
+
+###  Jaeger All-in-One start
+- docker start jaeger
 
 ### 2. Run Application
 ```bash
@@ -54,6 +65,7 @@ curl http://localhost:8080/actuator/health
 - `GET /actuator/health` - Application health status
 - `GET /actuator/metrics` - Performance metrics
 - `GET /actuator/metrics/http.server.requests` - HTTP request metrics
+- `Jaeger UI: http://localhost:16686` - Distributed tracing visualization
 
 ### Test Endpoints
 - `GET /api/v1/test/log` - Application health status
@@ -193,6 +205,9 @@ The application includes comprehensive monitoring via Spring Boot Actuator:
 - **Health Status**: Real-time application health
 - **Metrics**: HTTP requests, memory usage, database connections
 - **Performance**: Response times and throughput statistics
+- **Distributed Tracing**: Visualize transaction flows, identify performance bottlenecks, and debug issues with Jaeger.
+
+
 
 ## Troubleshooting
 
@@ -234,4 +249,4 @@ This project demonstrates:
 
 ---
 
-**Version**: 1.0.0 | **Java**: 21 | **Framework**: Spring Boot 3.5.4
+**Version**: 1.0.0 | **Java**: 21 | **Framework**: Spring Boot 3.5.4 | **Tracing**: OpenTelemetry & Jaeger
