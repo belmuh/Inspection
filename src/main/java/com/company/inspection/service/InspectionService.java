@@ -8,6 +8,7 @@ import com.company.inspection.exception.ResourceNotFoundException;
 import com.company.inspection.repository.InspectionAnswerRepository;
 import com.company.inspection.repository.InspectionPhotoRepository;
 import com.company.inspection.repository.InspectionRepository;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -35,6 +36,7 @@ public class InspectionService {
      * READ METHOD: Get questions with previous inspection data for a car
      * This method implements the Read requirement from the test case
      */
+    @WithSpan("inspection.getQuestions")
     public InspectionResponse getInspectionQuestions(String carId) {
         log.debug("Getting inspection questions for car: {}", carId);
 
@@ -117,6 +119,7 @@ public class InspectionService {
      * CREATE METHOD: Create new inspection with answers
      * This method implements the Create requirement from the test case
      */
+    @WithSpan("inspection.create")
     @Transactional
     public InspectionResponse createInspection(CreateInspectionRequest request) {
         log.debug("Creating new inspection for car: {}", request.getCarId());
@@ -173,6 +176,7 @@ public class InspectionService {
     /**
      * Process individual answer with photos
      */
+    @WithSpan("inspection.processAnswer")
     private InspectionAnswer processAnswer(Inspection inspection, CreateInspectionRequest.AnswerRequest answerRequest) {
         log.debug("Processing answer for question: {}", answerRequest.getQuestionId());
         Optional<InspectionAnswer> existingAnswer = answerRepository.findByInspectionIdAndQuestionId(inspection.getId(), answerRequest.getQuestionId());
@@ -274,6 +278,7 @@ public class InspectionService {
     /**
      * Get inspection by ID
      */
+    @WithSpan("inspection.getById")
     public Inspection getInspectionById(Long inspectionId) {
         log.debug("Getting inspection by id: {}", inspectionId);
         return inspectionRepository.findById(inspectionId)
@@ -286,6 +291,7 @@ public class InspectionService {
     /**
      * Get all inspections for a car
      */
+    @WithSpan("inspection.getByCarId")
     public List<Inspection> getInspectionsByCarId(String carId) {
         log.debug("Getting inspections for car: {}", carId);
         List<Inspection> inspections = inspectionRepository.findByCarIdOrderByCreatedAtDesc(carId);
@@ -296,6 +302,7 @@ public class InspectionService {
     /**
      * Get latest completed inspection for a car
      */
+    @WithSpan("inspection.getLatestCompleted")
     public Optional<Inspection> getLatestCompletedInspection(String carId) {
         log.debug("Getting latest completed inspection for car: {}", carId);
         return inspectionRepository.findFirstByCarIdAndStatusOrderByCreatedAtDesc(
@@ -305,6 +312,7 @@ public class InspectionService {
     /**
      * Check if car has any previous inspections
      */
+    @WithSpan("inspection.hasPrevious")
     public boolean carHasPreviousInspections(String carId) {
         boolean hasPrevious = inspectionRepository.existsByCarIdAndStatus(
                 carId, Inspection.InspectionStatus.COMPLETED);
