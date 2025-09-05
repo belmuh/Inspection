@@ -22,7 +22,6 @@ public class InspectionPhoto {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id")
     @EqualsAndHashCode.Include
     private Long id;
 
@@ -36,7 +35,6 @@ public class InspectionPhoto {
     @Column(name = "photo_url", nullable = false, length = 500)
     private String photoUrl;
 
-    // Flag to identify new photos vs previous inspection photos
     @Column(name = "is_new", nullable = false)
     @Builder.Default
     private Boolean isNew = true;
